@@ -1,0 +1,53 @@
+
+.pgTitle {
+    text-align: center;
+}
+
+
+#mediaBtns {
+	text-align: center;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+#newSong {
+	padding-top: 10px;
+	padding-bottom: 10px;
+}
+
+#playlistTitle {
+	text-align: center;
+}
+
+.videoTrack {
+	width: 100%;
+	font-size: 14pt;
+	padding-top: 5px;
+	padding-bottom: 5px;
+}
+
+.videoTrack:nth-of-type(odd) {
+    background: #e0e0e0;
+}
+
+
+.topSplit, .bottomSplit {
+	position: absolute;
+	left: 0;
+	height: 50%;
+	width: 100%;
+}
+
+.topSplit {
+	overflow: hidden;
+	top: 0;
+}
+
+.bottomSplit {
+	bottom: 0;
+	overflow-y: scroll;
+}
+
+.delete-btn {
+	background-color: transparent;
+}

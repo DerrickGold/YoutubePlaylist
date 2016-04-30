@@ -1,0 +1,405 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+ 	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Youtube Playlist</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/webgui.css" rel="stylesheet">
+
+	<script src="js/jquery-1.12.1.min.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+	<script src="/api/mirrorAPI.js"></script>
+
+	<script>
+    var rmIconHtml = '<span class="glyphicon glyphicon-remove-circle" aria-hidden="true"></span>';
+
+    var youtubeAPI = {
+        url: "https://www.googleapis.com/youtube/v3/videos",
+        key: null, //this value is loaded from the plugin.conf file
+        locationType: "canada",
+        part: "snippet",
+
+        getVideoData: function (videoID, index, cb) {
+            var lookupUrl = youtubeAPI.url + "?key=" + youtubeAPI.key + "&" +
+                "locationType=" + youtubeAPI.locationType + "&part=" + youtubeAPI.part +
+                "&id=" + videoID;
+
+            (function(pos) {
+                $.getJSON(lookupUrl, function(data) {
+                    console.log(data.items);
+                    if (cb)
+                        cb(data.items[0], pos);
+                });
+            })(index);
+
+        }
+    };
+
+    var instance = {
+        pluginName: "YoutubePlaylist",
+        mirror: null,
+        player: null,
+        trackListing: [],
+        curTrack: 0,
+        curTrackUpdateTime: 2000,
+
+        //add list of comma separated video ID's to the video cue
+        loadIDList: function(list, doUpload) {
+            var allID = list.split(',').filter(function(e) {
+                return e.length > 0;
+            });
+            console.log("ALL ID: " + allID);
+            allID.forEach(function(videoId, index) {
+                instance.addLocalTrack(videoId, index);
+
+                if (doUpload) {
+                    instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                        fn: "appendPlaylist",
+                        args: videoId
+                    });
+                }
+            });
+        },
+
+        updateCount: function() {
+
+            $('#playlistTitle')
+                .text('Cued Videos (' + instance.trackListing.length + ')');
+        },
+
+        makeTrackListing: function(data, index) {
+
+            var title = data.snippet.title;
+            //instance.trackListing.push(title);
+            //instance.trackListing.splice(index, 0, title);
+
+            console.log(instance.trackListing);
+            instance.trackListing[index].title.text(title);
+        },
+
+        updateCurTrack: function(trackNum) {
+            var lim = instance.trackListing.length;
+            if (lim == 0 || trackNum >= lim || trackNum < 0) {
+                $('#currentTrack').text("Nothing Playing");
+            } else {
+                instance.curTrack = trackNum;
+                $('#currentTrack').text(instance.trackListing[trackNum].title.text());
+            }
+
+            instance.updateCount();
+        },
+
+        addLocalTrack: function(videoId, trackNum) {
+
+            var curDiv = $(document.createElement("div"));
+            var titleDiv = $(document.createElement("div"));
+            var rmBtn = $(document.createElement("button"));
+
+            instance.trackListing[trackNum] = {
+                id: videoId,
+                title: titleDiv,
+                div: curDiv,
+                delete: rmBtn
+            };
+
+            var inputGroup = $(document.createElement("div")).addClass("input-group");
+            titleDiv.appendTo(inputGroup);
+
+            //if title clicked, skip to that video
+            titleDiv.click(function() {
+                instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                    fn: "playVideoNum",
+                    args: videoId
+                });
+            });
+
+            var btnSpan = $(document.createElement("span")).addClass('input-group-btn');
+            btnSpan.appendTo(inputGroup);
+
+            rmBtn.addClass('btn delete-btn').html(rmIconHtml);
+            rmBtn.appendTo(btnSpan);
+
+            rmBtn.click(function() {
+                instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                    fn: "removeVideo",
+                    args: videoId
+                });
+
+                //delete div
+                curDiv.remove();
+                //remove track from the listing
+                instance.trackListing.splice(trackNum, 1);
+            });
+
+            inputGroup.appendTo(curDiv);
+
+            curDiv.addClass("videoTrack");
+            curDiv.appendTo('#tracks');
+
+            youtubeAPI.getVideoData(videoId, trackNum, instance.makeTrackListing);
+        },
+
+        clearPlaylist: function() {
+            instance.trackListing = [];
+            instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                fn: "clearPlaylist",
+                args: null
+            });
+
+            $('#tracks').empty();
+        },
+
+        savePlaylist: function(that) {
+            var list = '';
+            instance.trackListing.forEach(function(track) {
+                list += track.id + ",";
+            });
+
+            var plData = 'data:application/txt;charset=utf-8,'
+                                       + encodeURIComponent(list);
+
+            console.log(plData);
+            that.href = plData;
+            that.target = "_blank";
+            that.download = 'playlist.txt';
+
+            //close the menu when playlist is saved
+            $('#menuBtn').click();
+        },
+
+        loadPlaylist: function(fileBtn) {
+            instance.clearPlaylist();
+            console.log(fileBtn);
+
+            var file = fileBtn.target.files[0];
+            if (!file)
+                return;
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                instance.loadIDList(e.target.result, true);
+            };
+            reader.readAsText(file);
+
+            //close the menu when playlist is loaded
+            $('#menuBtn').click();
+        }
+    };
+
+
+
+    $(window).load(function() {
+        $('#addVideoBtn').prop('disabled', true);
+
+
+        instance.mirror = new MirrorAPI();
+
+        instance.mirror.onConnection(function() {
+
+            instance.mirror.onAPIResponse("jscmd", function(status, plugin, payload) {
+                if (payload.fn == "getPlaylist") {
+
+                    console.log(payload);
+                    instance.loadIDList(payload.value, false);
+
+                }
+                else if (payload.fn == "getCurVideo") {
+                    instance.updateCurTrack(parseInt(payload.value));
+                }
+                else if (payload.fn == "getPauseState") {
+
+                    var isPaused = payload.value == "true" ? true : false
+                    if (!isPaused) {
+                        $('#PlayPauseIcon').removeClass("glyphicon-play")
+                            .addClass("glyphicon-pause");
+                    } else {
+                        $('#PlayPauseIcon').removeClass("glyphicon-pause")
+                            .addClass("glyphicon-play");
+                    }
+                }
+            });
+
+            instance.mirror.onAPIResponse('getopt', function(status, plugin, payload) {
+
+                //received youtube api key
+                if (payload.setting == "youtube-key") {
+                    //add key to API interface
+                    youtubeAPI.key = payload.value;
+
+                    //now get the current track listing from the display
+                    instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                        fn: "getPlaylist",
+                        args: null
+                    });
+                }
+            });
+
+
+
+
+            //load youtube api key from plugin config
+            instance.mirror.doAPICall('getopt', instance.pluginName, "youtube-key");
+
+
+            //every half second, update the current track listing
+            setInterval(function() {
+                instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                    fn: "getCurVideo",
+                    args: null
+                });
+
+                //update the play pause button status
+                instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                    fn: "getPauseState",
+                    args: null
+                });
+
+            }, instance.curTrackUpdateTime);
+
+
+            $('#PrevVideo').click(function() {
+                instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                    fn: "skipToPrevVideo",
+                    args: null
+                });
+            });
+
+            $('#NextVideo').click(function() {
+                instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                    fn: "skipToNextVideo",
+                    args: null
+                });
+            });
+
+            $('#PlayPauseBtn').click(function() {
+                instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                    fn: "playPauseToggle",
+                    args: null
+                });
+
+            })
+
+
+            $('#savePlBtn').click(function(e) {
+                var that = this;
+                instance.savePlaylist(that);
+            });
+
+            $('#loadPlBtn').change(function(e) {
+                instance.loadPlaylist(e);
+            });
+
+
+            $('#youtubeurlbox').keyup(function(obj) {
+                if ($(this).val().length > 0) {
+                    $('#addVideoBtn').prop('disabled', false);
+                }
+                else
+                    $('#addVideoBtn').prop('disabled', true);
+            });
+
+            $('#youtubeurlbox').on('paste', function() {
+                setTimeout(function () {
+                    $('#youtubeurlbox').trigger('keyup');
+                }, 0);
+            })
+
+
+            $('#addVideoBtn').click(function() {
+                var videoUrl = $('#youtubeurlbox').val();
+                var videoid = videoUrl.match(/(?:https?:\/{2})?(?:w{3}\.)?youtu(?:be)?\.(?:com|be)(?:\/watch\?v=|\/)([^\s&]+)/);
+
+                if(videoid == null) {
+                    console.log("The youtube url is not valid.");
+                    return;
+                }
+
+                videoid = videoid[1];
+                instance.mirror.doAPICall('jscmd', instance.pluginName, {
+                    fn: "appendPlaylist",
+                    args: videoid
+                });
+
+                //youtubeAPI.getVideoData(videoid, instance.makeTrackListing);
+                instance.addLocalTrack(videoid, instance.trackListing.length);
+
+                //clear the box and disable the add button
+                $('#youtubeurlbox').val('');
+                $('#addVideoBtn').prop('disabled', true);
+
+                //close the menu when a video is added
+                $('#menuBtn').click();
+            });
+        });
+
+    });
+    </script>
+  </head>
+  <body>
+
+    <div class="topSplit">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false" id="menuBtn">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+              <a class="navbar-brand" href="/webgui/gui.html">Back</a>
+            </div>
+
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    <li><a href="#" id="savePlBtn">Save Playlist</a></li>
+                    <li><input type="file" id="loadPlBtn" text="Load Playlist"/></li>
+                    <!--li><a href="#" id="loadPlBtn">Load Playlist</a></li-->
+                </ul>
+
+
+                <div class="navbar-form navbar-left input-group">
+                  <input type="text" class="form-control" id="youtubeurlbox" placeholder="Youtube Url">
+                    <span class="input-group-btn">
+                        <button type="button" class="btn btn-default" id="addVideoBtn">Add Video</button>
+                    </span>
+                </div>
+
+                </div><!-- /.navbar-collapse -->
+             </div><!-- /.container-fluid -->
+        </nav>
+     	<h2 class="pgTitle">Youtube Playlist</h2>
+
+        <!--media controls-->
+        <marquee>
+            <h4 id="currentTrack"></h4>
+        </marquee>
+        <div class="input-group" id="mediaBtns">
+            <button type="button" class="btn btn-primary" id="PrevVideo">
+                <span class="glyphicon glyphicon-step-backward" aria-hidden="true"></span>
+            </button>
+
+            <button type="button" class="btn btn-primary" id="PlayPauseBtn">
+                <span id="PlayPauseIcon" class="glyphicon glyphicon-play" aria-hidden="true"></span>
+            </button>
+
+            <button type="button" class="btn btn-primary" id="NextVideo">
+                <span class="glyphicon glyphicon-step-forward" aria-hidden="true"></span>
+            </button>
+        </div>
+
+
+        <h4 id="playlistTitle">Cued Videos</h4><hr>
+    </div>
+
+    <div class="bottomSplit">
+        <div id="tracks"></div>
+    </div>
+
+  </body>
+</html>
