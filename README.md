@@ -5,6 +5,8 @@ allows one to create, save, edit, and play youtube playlists on a smart mirror d
 
 
 ##Screenshots:
+###What it looks like on the mirror:
 ![Mirror display](https://raw.githubusercontent.com/DerrickGold/YoutubePlaylist/master/ScreenShots/display.png)
 
+###The web gui via phone browser:
 ![Web GUI](https://raw.githubusercontent.com/DerrickGold/YoutubePlaylist/master/ScreenShots/webgui.png)
