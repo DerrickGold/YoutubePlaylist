@@ -32,7 +32,8 @@ var YoutubePlaylist = function() {
 
 		//instance.player.cueVideoById({
 		instance.player.loadVideoById({
-			"videoId": instance.playlist[instance.currentVideo]
+		    "videoId": instance.playlist[instance.currentVideo],
+		    "suggestedQuality":"small"
 		});
 
 		instance.playVideo();
