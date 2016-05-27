@@ -1,8 +1,8 @@
 <!doctype html>
 
 <html lang="en">
-  <head>
- 	<meta charset="utf-8">
+<head>
+    <meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -356,18 +356,27 @@
             </div>
 
             <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-                <ul class="nav navbar-nav">
-                    <li><a href="#" id="savePlBtn">Save Playlist</a></li>
-                    <li><input type="file" id="loadPlBtn" text="Load Playlist"/></li>
-                    <!--li><a href="#" id="loadPlBtn">Load Playlist</a></li-->
-                </ul>
 
-
-                <div class="navbar-form navbar-left input-group">
-                  <input type="text" class="form-control" id="youtubeurlbox" placeholder="Youtube Url">
+                <div class="navbar-form navbar-left">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="youtubeurlbox" placeholder="Youtube Url">
                     <span class="input-group-btn">
                         <button type="button" class="btn btn-default" id="addVideoBtn">Add Video</button>
                     </span>
+                </div><!--/input-group-->
+                </div>
+
+                <ul class="nav navbar-nav">
+                    <li><a href="#" id="savePlBtn">Save Playlist</a></li>
+                    <!--li><input type="file" id="loadPlBtn" text="Load Playlist"/></li-->
+                    <!--li><a href="#" id="loadPlBtn">Load Playlist</a></li-->
+                </ul>
+
+                <div class="navbar-form navbar-left">
+                <div class="input-group">
+                    <label for="loadBtn">Load Playlist:</label>
+                    <input class="navbar-btn" type="file" id="loadPlBtn" name="loadBtn" text="Load Playlist">
+                </div><!--/input-group-->
                 </div>
 
                 </div><!-- /.navbar-collapse -->
